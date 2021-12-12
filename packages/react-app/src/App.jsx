@@ -37,6 +37,18 @@ import { dappLearningCollectibles, getCurrentColl } from "./gql";
 import { Loading, useLoading } from "./components/Loading";
 import { NFTImage } from "./components/Image";
 import { NoData } from "./components/NoData";
+import { Web3ReactProvider, useWeb3React, UnsupportedChainIdError } from '@web3-react/core'
+import {injected, network} from "./connectors"
+
+const POLLING_INTERVAL = 12000
+const RPC_URLS = {
+  4: "https://rinkeby.infura.io/v3/" + INFURA_ID
+}
+function getLibrary(provider) {
+  const library = new Web3Provider(provider)
+  library.pollingInterval = 12000
+  return library
+}
 
 const { BufferList } = require("bl");
 // https://www.npmjs.com/package/ipfs-http-client
@@ -112,7 +124,7 @@ if (DEBUG) console.log("📡 Connecting to Mainnet Ethereum");
 //
 // attempt to connect to our own scaffold eth rpc and if that fails fall back to infura...
 const scaffoldEthProvider = new JsonRpcProvider("https://rpc.scaffoldeth.io:48544");
-const mainnetInfura = new JsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID);
+const mainnetInfura = new JsonRpcProvider("https://rinkeby.infura.io/v3/" + INFURA_ID);
 // ( ⚠️ Getting "failed to meet quorum" errors? Check your INFURA_I
 
 // 🏠 Your local provider is usually pointed at your local blockchain
@@ -712,6 +724,7 @@ function App(props) {
   };
 
   return (
+    <Web3ReactProvider getLibrary={getLibrary}>
     <div className="App">
       <Modal
         title="Start auction"
@@ -1000,46 +1013,9 @@ function App(props) {
       {/* <ThemeSwitch /> */}
 
       {/* 🗺 Extra UI like gas price, eth price, faucet, and support: */}
-      <div style={{ position: "fixed", textAlign: "left", left: 0, bottom: 20, padding: 10, zIndex: 90 }}>
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={8}>
-            <Ramp price={price} address={address} networks={NETWORKS} />
-          </Col>
-
-          <Col span={8} style={{ textAlign: "center", opacity: 0.8 }}>
-            <GasGauge gasPrice={gasPrice} />
-          </Col>
-          <Col span={8} style={{ textAlign: "center", opacity: 1 }}>
-            <Button
-              onClick={() => {
-                window.open("https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA");
-              }}
-              size="large"
-              shape="round"
-            >
-              <span style={{ marginRight: 8 }} role="img" aria-label="support">
-                💬
-              </span>
-              Support
-            </Button>
-          </Col>
-        </Row>
-
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={24}>
-            {
-              /*  if the local provider has a signer, let's show the faucet:  */
-              faucetAvailable ? (
-                <Faucet localProvider={localProvider} price={price} ensProvider={mainnetProvider} />
-              ) : (
-                ""
-              )
-            }
-          </Col>
-        </Row>
-      </div>
       <Loading />
     </div>
+    </Web3ReactProvider>
   );
 }
 
