@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { BrowserRouter, Switch, Route, Link } from "react-router-dom";
-import "antd/dist/antd.css";
+import { BrowserRouter, Switch, Route } from "react-router-dom";
 import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
 import { PrinterOutlined, FlagOutlined } from "@ant-design/icons";
 import "./App.css";
-import { Row, Col, Button, Menu, Alert, List, Card, Modal, InputNumber, Empty } from "antd";
+import "antd/dist/antd.css";
+import { Row, Col, Button, Alert, List, Card, Modal, InputNumber, Empty, message } from "antd";
 import Web3Modal from "web3modal";
 import WalletConnectProvider from "@walletconnect/web3-provider";
 import { useUserAddress } from "eth-hooks";
@@ -19,7 +19,7 @@ import {
   useBalance,
   useExternalContractLoader,
 } from "./hooks";
-import { Header, Account, Faucet, Ramp, Contract, GasGauge, Address, AddressInput } from "./components";
+import { Faucet, Ramp, Contract, GasGauge, Address, AddressInput } from "./components";
 import { Transactor } from "./helpers";
 import { formatEther, parseEther } from "@ethersproject/units";
 import { BigNumber, utils } from "ethers";
@@ -49,6 +49,7 @@ function getLibrary(provider) {
   library.pollingInterval = 12000
   return library
 }
+import { Header, NavBar } from "./components/Header";
 
 const { BufferList } = require("bl");
 // https://www.npmjs.com/package/ipfs-http-client
@@ -128,14 +129,14 @@ const mainnetInfura = new JsonRpcProvider("https://rinkeby.infura.io/v3/" + INFU
 // ( ⚠️ Getting "failed to meet quorum" errors? Check your INFURA_I
 
 // 🏠 Your local provider is usually pointed at your local blockchain
-const localProviderUrl = targetNetwork.rpcUrl;
+const localProviderUrl = targetNetwork?.rpcUrl;
 // as you deploy to other networks you can set REACT_APP_PROVIDER=https://dai.poa.network in packages/react-app/.env
 const localProviderUrlFromEnv = process.env.REACT_APP_PROVIDER ? process.env.REACT_APP_PROVIDER : localProviderUrl;
 if (DEBUG) console.log("🏠 Connecting to provider:", localProviderUrlFromEnv);
 const localProvider = new JsonRpcProvider(localProviderUrlFromEnv);
 
 // 🔭 block explorer URL
-const blockExplorer = targetNetwork.blockExplorer;
+const blockExplorer = targetNetwork?.blockExplorer;
 
 function App(props) {
   const mainnetProvider = scaffoldEthProvider && scaffoldEthProvider._network ? scaffoldEthProvider : mainnetInfura;
@@ -234,32 +235,17 @@ function App(props) {
   console.log("🏷 Resolved austingriffith.eth as:",addressFromENS)
   */
 
-  let networkDisplay = "";
+  const [networkDisplay, setNetwork] = useState("")
   // console.log("selectedChainId=====", selectedChainId);
   // console.log("localChainId=====", localChainId);
-  if (localChainId && selectedChainId && localChainId != selectedChainId) {
-    networkDisplay = (
-      <div style={{ zIndex: 2, position: "absolute", right: 0, top: 60, padding: 16 }}>
-        <Alert
-          message={"⚠️ Wrong Network"}
-          description={
-            <div>
-              You have <b>{NETWORK(selectedChainId).name}</b> selected and you need to be on{" "}
-              <b>{NETWORK(localChainId).name}</b>.
-            </div>
-          }
-          type="error"
-          closable={false}
-        />
-      </div>
-    );
-  } else {
-    networkDisplay = (
-      <div style={{ zIndex: -1, position: "absolute", right: 154, top: 28, padding: 16, color: targetNetwork.color }}>
-        {targetNetwork.name}
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (localChainId && selectedChainId && localChainId != selectedChainId) {
+      message.warn(`You are selected to choose ${NETWORK(selectedChainId)?.name || "Unknown Network"} Network, you should choose ${targetNetwork?.name} Network`)
+      setNetwork(NETWORK(selectedChainId)?.name || "Unknown")
+    } else {
+      setNetwork(targetNetwork?.name)
+    }
+  }, [localChainId, selectedChainId, targetNetwork])
 
   const loadWeb3Modal = useCallback(async () => {
     const provider = await web3Modal.connect();
@@ -271,11 +257,6 @@ function App(props) {
       loadWeb3Modal();
     }
   }, [loadWeb3Modal]);
-
-  const [route, setRoute] = useState();
-  useEffect(() => {
-    setRoute(window.location.pathname);
-  }, [setRoute]);
 
   let faucetHint = "";
   const faucetAvailable =
@@ -296,7 +277,7 @@ function App(props) {
     formatEther(yourLocalBalance) <= 0
   ) {
     faucetHint = (
-      <div style={{ padding: 16 }}>
+      <div>
         <Button
           type={"primary"}
           onClick={() => {
@@ -482,7 +463,7 @@ function App(props) {
                   block
                   type="primary"
                   onClick={() => approveWETH()}
-                  // disabled={address * 1 !== owner * 1}
+                // disabled={address * 1 !== owner * 1}
                 >
                   <FlagOutlined />
                   Approve my WETH
@@ -604,7 +585,7 @@ function App(props) {
             {owner && (
               <Address
                 address={owner}
-                size="short"
+                size={6}
                 disableBlockies
                 ensProvider={mainnetProvider}
                 blockExplorer={blockExplorer}
@@ -642,7 +623,7 @@ function App(props) {
     try {
       const auctionAddress = readContracts.AuctionFixedPrice.address;
       await writeContracts.DappLearningCollectible.setApprovalForAll(auctionAddress, true);
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const approveWETH = async () => {
@@ -654,7 +635,7 @@ function App(props) {
       // if (allowance.lt(price)) {
 
       // }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const completeAuction = async (tokenId, price) => {
@@ -756,79 +737,21 @@ function App(props) {
       </Modal>
 
       {/* ✏️ Edit the header and change the title to your project name */}
-      <Header>
-        {/* 👨‍💼 Your account is in the top right with a wallet at connect options */}
-        <div style={{ position: "absolute", textAlign: "right", right: 0, top: 0, padding: 10 }}>
-          <Account
-            address={address}
-            localProvider={localProvider}
-            userProvider={userProvider}
-            mainnetProvider={mainnetProvider}
-            price={price}
-            web3Modal={web3Modal}
-            loadWeb3Modal={loadWeb3Modal}
-            logoutOfWeb3Modal={logoutOfWeb3Modal}
-            blockExplorer={blockExplorer}
-          />
-          {faucetHint}
-        </div>
-      </Header>
-      {networkDisplay}
-
+      <Header
+        address={address}
+        localProvider={localProvider}
+        userProvider={userProvider}
+        mainnetProvider={mainnetProvider}
+        price={price}
+        web3Modal={web3Modal}
+        loadWeb3Modal={loadWeb3Modal}
+        logoutOfWeb3Modal={logoutOfWeb3Modal}
+        blockExplorer={blockExplorer}
+        networkDisplay={networkDisplay}
+        targetNetwork={targetNetwork}
+      />
       <BrowserRouter>
-        <Menu className="nav-bar" style={{ textAlign: "center" }} selectedKeys={[route]} mode="horizontal">
-          <Menu.Item key="/">
-            <Link
-              onClick={() => {
-                setRoute("/");
-              }}
-              to="/"
-            >
-              Gallery
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/yourcollectibles">
-            <Link
-              onClick={() => {
-                setRoute("/yourcollectibles");
-              }}
-              to="/yourcollectibles"
-            >
-              YourCollectibles
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/transfers">
-            <Link
-              onClick={() => {
-                setRoute("/transfers");
-              }}
-              to="/transfers"
-            >
-              Transfers
-            </Link>
-          </Menu.Item>
-          {/* <Menu.Item key="/ipfsup">
-            <Link
-              onClick={() => {
-                setRoute("/ipfsup");
-              }}
-              to="/ipfsup"
-            >
-              IPFS Upload
-            </Link>
-          </Menu.Item> */}
-          <Menu.Item key="/debugcontracts">
-            <Link
-              onClick={() => {
-                setRoute("/debugcontracts");
-              }}
-              to="/debugcontracts"
-            >
-              Debug Contracts
-            </Link>
-          </Menu.Item>
-        </Menu>
-
+        <NavBar />
         <Switch>
           <Route exact path="/">
             {/*
@@ -944,6 +867,7 @@ function App(props) {
                 bordered
                 dataSource={transferEvents}
                 renderItem={item => {
+                  console.log(item)
                   return (
                     <List.Item key={item[0] + "_" + item[1] + "_" + item.blockNumber + "_" + item[2].toNumber()}>
                       <span style={{ fontSize: 16, marginRight: 8 }}>#{item[2].toNumber()}</span>
